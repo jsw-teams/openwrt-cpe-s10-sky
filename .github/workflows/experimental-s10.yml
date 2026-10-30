@@ -25,8 +25,8 @@ jobs:
       - name: Get pinned independent eproxy core and LuCI packages
         run: |
           git clone https://github.com/jsw-teams/eproxy.git eproxy
-          git -C eproxy checkout adc11951f482eb5849c1c5d1c6be5231a5f9b923
-          test "$(git -C eproxy rev-parse HEAD)" = "adc11951f482eb5849c1c5d1c6be5231a5f9b923"
+          git -C eproxy checkout 022b8e8256cc1ffa9e507347deb6e118369771d9
+          test "$(git -C eproxy rev-parse HEAD)" = "022b8e8256cc1ffa9e507347deb6e118369771d9"
           cp -R eproxy/package/eproxy-core openwrt/package/eproxy-core
           cp -R eproxy/package/luci-app-eproxy openwrt/package/luci-app-eproxy
           mkdir -p openwrt/package/eproxy-core/src
