@@ -1,0 +1,36 @@
+# Public-source repository: deny private device data and build artifacts by default.
+*.bin
+*.img
+*.dtb
+*.tar
+*.tar.gz
+*.apk
+*.ipk
+*.key
+*.pem
+*.p12
+*.pfx
+*.sqlite
+*.log
+*.config
+.config
+.env
+.env.*
+backups/
+private-backup/
+device/
+source/
+upstream/
+nss-upstream/
+build/
+tmp/
+dl/
+staging_dir/
+bin/
+__pycache__/
+.pytest_cache/
+!profiles/*.json
+
+# Obsolete local s10-proxy draft; superseded by independent eproxy repository
+/package/s10-proxy/
+/package/luci-app-s10-proxy/

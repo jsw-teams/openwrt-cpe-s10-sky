@@ -1,0 +1,26 @@
+name: Static Preflight (No Firmware Release)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout public policy files
+        uses: actions/checkout@v4
+      - name: Python runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate release policy
+        run: python3 tools/preflight.py --mode policy
+      - name: Regression tests
+        run: python3 -m unittest discover -s tests -v
+      # Intentionally no firmware build, release, secrets, or artifact upload.

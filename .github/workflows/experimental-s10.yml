@@ -1,0 +1,70 @@
+name: S10 Experimental Full Firmware Build (NOT FLASHABLE)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free runner space and add dependencies
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/hostedtoolcache/CodeQL || true
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev python3 python3-setuptools rsync unzip zlib1g-dev file wget curl ca-certificates
+          df -h .
+      - name: Check out pinned third-party CPE S10 reference tree
+        run: |
+          git clone --filter=blob:none https://github.com/Jim78778/openwrt-ipq.git openwrt
+          git -C openwrt checkout cb047be72907a8b4bc761f47527c49c47bbb3f5e
+          test "$(git -C openwrt rev-parse HEAD)" = "cb047be72907a8b4bc761f47527c49c47bbb3f5e"
+      - name: Get pinned independent eproxy core and LuCI packages
+        run: |
+          git clone https://github.com/jsw-teams/eproxy.git eproxy
+          git -C eproxy checkout 7be45f47e4f4b826a087f313f81ec051f6e95f6f
+          test "$(git -C eproxy rev-parse HEAD)" = "7be45f47e4f4b826a087f313f81ec051f6e95f6f"
+          cp -R eproxy/package/eproxy-core openwrt/package/eproxy-core
+          cp -R eproxy/package/luci-app-eproxy openwrt/package/luci-app-eproxy
+          mkdir -p openwrt/package/eproxy-core/src
+          cp eproxy/go.mod eproxy/LICENSE openwrt/package/eproxy-core/src/
+          cp -R eproxy/cmd eproxy/internal openwrt/package/eproxy-core/src/
+      - name: Install pinned reference feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          # Avoid optional feeds that introduce unrelated recursive Kconfig dependencies.
+          ./scripts/feeds install -p packages golang
+          ./scripts/feeds install -p luci luci-base luci-mod-admin-full luci-mod-network luci-mod-system luci-mod-status
+          ./scripts/feeds install -p nss_packages qca-nss-drv qca-nss-ecm
+      - name: Configure required NSS and eproxy build
+        run: |
+          cp config/s10-experimental.seed openwrt/.config
+          cd openwrt
+          make defconfig
+          for pkg in eproxy-core luci-app-eproxy kmod-qca-nss-drv kmod-qca-nss-dp kmod-qca-ssdk kmod-qca-nss-ecm nss-firmware-ipq807x kmod-mhi-net; do
+            grep -Fqx "CONFIG_PACKAGE_${pkg}=y" .config || { echo "::error::Required package unavailable: $pkg"; exit 1; }
+          done
+      - name: Download selected build sources
+        run: |
+          cd openwrt
+          make -j4 download V=s
+      - name: Compile full experimental S10 image (not safe to flash)
+        run: |
+          cd openwrt
+          make -j2 V=s
+      - name: Verify artifact exists, but do not assert hardware safety
+        run: |
+          find openwrt/bin/targets/qualcommax/ipq807x -maxdepth 1 -type f -print
+          test "$(find openwrt/bin/targets/qualcommax/ipq807x -maxdepth 1 -name '*sysupgrade.bin' | wc -l)" -gt 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UNFLASHABLE-CPE-S10-SKY-REFERENCE-EXPERIMENT
+          path: |
+            openwrt/bin/targets/qualcommax/ipq807x/*.bin
+            openwrt/bin/targets/qualcommax/ipq807x/*.manifest
+            openwrt/bin/targets/qualcommax/ipq807x/*.json
+          retention-days: 3

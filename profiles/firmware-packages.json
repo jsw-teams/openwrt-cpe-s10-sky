@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "target": "swaiot,cpe-s10-sky",
+  "baseline": "OpenWrt 25.12.6 (official), local commit 64900e756efa667774214f9c6b17c113222e01f7",
+  "status": "required feature set defined; packaging/version and hardware ABI still unverified",
+  "management": {
+    "path": "/router/",
+    "root_behavior": 404,
+    "lan_only": true,
+    "wan_exposed": false,
+    "https_only": true,
+    "backend": "nginx + LuCI CGI/uWSGI candidate, subpath not validated",
+    "status": "planned /router/ route, not deployed"
+  },
+  "profiles": {
+    "core": {
+      "purpose": "DIAGNOSTIC/RECOVERY ONLY: minimal software datapath for bring-up and failure isolation. NOT a releasable final firmware.",
+      "required": [
+        "base-files",
+        "busybox",
+        "procd",
+        "ubus",
+        "uci",
+        "netifd",
+        "logd",
+        "apk",
+        "dropbear",
+        "firewall4",
+        "nftables",
+        "kmod-nft-offload",
+        "dnsmasq-full",
+        "odhcpd-ipv6only",
+        "odhcp6c",
+        "ip-full",
+        "ca-bundle",
+        "ca-certificates",
+        "wpad-basic-mbedtls",
+        "kmod-ath11k",
+        "kmod-ath11k-ahb",
+        "ath11k-firmware-ipq8074",
+        "kmod-mhi-bus",
+        "kmod-mhi-pci-generic",
+        "kmod-mhi-net",
+        "kmod-mhi-wwan-ctrl",
+        "luci-base",
+        "luci-mod-admin-full",
+        "luci-mod-network",
+        "luci-mod-system",
+        "luci-mod-status"
+      ],
+      "device_specific_gates": [
+        "ART/NVMEM map",
+        "ath11k BDF firmware search and radio ID",
+        "MHI PCI enumerates RM502Q-AE",
+        "WAN/LAN map and NAND/UBI verified"
+      ],
+      "conditional": {
+        "cellular_control": [
+          "kmod-mhi-wwan-mbim",
+          "umbim",
+          "luci-proto-mbim"
+        ],
+        "alternative_qmi": [
+          "uqmi",
+          "luci-proto-qmi"
+        ],
+        "modemmanager_variant": [
+          "modemmanager",
+          "luci-proto-modemmanager"
+        ],
+        "http_ingress": [
+          "nginx-ssl",
+          "nginx-mod-luci",
+          "nginx-mod-ubus",
+          "uwsgi",
+          "uwsgi-luci-support"
+        ],
+        "time_sync": [
+          "sysntpd"
+        ]
+      },
+      "notes": [
+        "Core is not a release profile, NSS and OpenClash may be disabled only for isolated troubleshooting.",
+        "Never silently substitute Core for the required Daily+NSS firmware."
+      ]
+    },
+    "daily": {
+      "purpose": "Required eproxy UI and core for target firmware; full encrypted proxy protocols are not complete yet.",
+      "additional": [
+        "curl",
+        "tcpdump",
+        "ethtool",
+        "iw",
+        "iperf3",
+        "openssl-util",
+        "luci-i18n-base-zh-cn",
+        "luci-compat",
+        "bash",
+        "unzip",
+        "kmod-nft-tproxy",
+        "kmod-tun",
+        "kmod-inet-diag",
+        "eproxy-core",
+        "luci-app-eproxy"
+      ],
+      "conditional": {
+        "modem_ui": [
+          "qmodem",
+          "luci-app-qmodem"
+        ],
+        "diagnostics": [
+          "luci-app-nlbwmon"
+        ]
+      },
+      "notes": [
+        "eproxy source and LuCI in standalone public repository",
+        "HTTP CONNECT and SOCKS5 are local proxy protocols only",
+        "No credentials in firmware",
+        "TUN/nftables and DNS integration remain blockers"
+      ],
+      "required_runtime": [
+        {
+          "name": "eproxy-core",
+          "required_for_release": true,
+          "source": "github.com/jsw-teams/eproxy, pinned commit",
+          "current_protocols": [
+            "HTTP CONNECT",
+            "SOCKS5 CONNECT"
+          ],
+          "security_status": "experimental loopback-only"
+        },
+        {
+          "name": "encrypted outbound proxy protocols",
+          "required_for_release": true,
+          "status": "BLOCKED, not implemented or independently tested",
+          "candidate_protocols": [
+            "Shadowsocks 2022",
+            "Trojan",
+            "VLESS",
+            "Hysteria2"
+          ]
+        }
+      ]
+    },
+    "nss_required": {
+      "purpose": "MANDATORY kernel fast-path in all release firmware. No release on unresolved NSS, DP, SSDK, ECM or firmware ABI failures.",
+      "gates": [
+        "all five required NSS firmware/kernel packages resolve and build against final official kernel/feeds",
+        "PCIe RM502Q-AE/mhi + NSS/ECM bridging or offload relationship validated; never assume rmnet is hardware-accelerated",
+        "offload functional counters or connection evidence demonstrate actual active acceleration (not module loaded only)",
+        "no IPv4/IPv6 routing/NAT/DNS/MTU regressions",
+        "OpenClash Mihomo TUN/fake-ip and NSS coexistence or documented safe offload bypass for proxied flows",
+        "system stability, failover, recovery and 24-hour load test compared to software path",
+        "debug-only software fallback exists; production must pass the NSS gate, not relabel fallback as a finished release"
+      ],
+      "required": [
+        "nss-firmware-ipq807x",
+        "kmod-qca-nss-drv",
+        "kmod-qca-nss-dp",
+        "kmod-qca-ssdk",
+        "kmod-qca-nss-ecm"
+      ],
+      "status": "MANDATORY for release, NOT YET VALIDATED on official baseline",
+      "source": "qosmio/openwrt-ipq 25.12-nss reference and pinned nss-packages; port onto official commit only after ABI review"
+    }
+  },
+  "omit_by_default": [
+    "samba4",
+    "vsftpd",
+    "proftpd",
+    "p910nd",
+    "minidlna",
+    "docker",
+    "luci-app-ttyd",
+    "luci-app-upnp",
+    "luci-app-passwall",
+    "luci-app-ssr-plus",
+    "luci-app-vlmcsd",
+    "luci-app-usb-printer",
+    "luci-app-samba4",
+    "luci-app-diskman",
+    "kmod-usb-printer",
+    "iptables-legacy",
+    "luci-app-advanced-reboot"
+  ],
+  "policy": {
+    "do_not_remove_dependency_packages_automatically": true,
+    "do_not_touch_running_router": true,
+    "do_not_publish_calibration_or_credentials": true,
+    "do_not_use_legacy_ipkg_on_25_12": true,
+    "release_build_gate": "separate verified hardware port",
+    "flash_gate": "serial/recovery rehearsal + cold-boot + ethernet/wifi/cellular + IPv6 + secure management regression",
+    "nss_must_be_required_for_release": true,
+    "software_forwarding_is_debug_only": true,
+    "eproxy_must_be_required_for_release": true
+  },
+  "release": {
+    "required_profiles": [
+      "daily",
+      "nss_required"
+    ],
+    "release_requires": [
+      "official-compatible board port",
+      "RM502Q-AE cellular data path",
+      "NSS/DP/SSDK/ECM firmware and offload proven",
+      "LuCI subpath and LAN TLS/authentication",
+      "safe recovery tested",
+      "pinned eproxy core and LuCI packages",
+      "encrypted outbound protocol compatibility verified",
+      "eproxy TUN/nftables DNS and IPv6 rollback tests"
+    ],
+    "diagnostic_profile_only": "core",
+    "status": "BLOCKED; eproxy encrypted-protocol and firmware hardware validations incomplete"
+  }
+}
