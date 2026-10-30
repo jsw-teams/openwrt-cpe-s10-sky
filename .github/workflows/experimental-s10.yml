@@ -35,7 +35,13 @@ jobs:
       - name: Install pinned reference feeds
         run: |
           cd openwrt
+          # Pinned S10 baseline has ucode 2026.01.16; modern LuCI requires >=2026.02.27.
+          # Use a pre-February LuCI revision instead of disabling dependency validation.
+          LUCI_REF=2682aecc7fcf56a09b0489cfa84136286142b8de
+          sed -i "s#^src-git luci .*#src-git luci https://github.com/openwrt/luci.git^$LUCI_REF#" feeds.conf.default
+          grep -Fx "src-git luci https://github.com/openwrt/luci.git^$LUCI_REF" feeds.conf.default
           ./scripts/feeds update -a
+          test "$(git -C feeds/luci rev-parse HEAD)" = "$LUCI_REF"
           # Avoid optional feeds that introduce unrelated recursive Kconfig dependencies.
           ./scripts/feeds install -p packages golang
           ./scripts/feeds install -p luci luci-base luci-mod-admin-full luci-mod-network luci-mod-system luci-mod-status
